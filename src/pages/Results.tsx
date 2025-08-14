@@ -6,9 +6,12 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { SidebarProvider } from '@/components/ui/sidebar';
 import CandidateDetail from '@/components/CandidateDetail';
+import EmailDialog from '@/components/EmailDialog';
 import { useResults } from '@/contexts/ResultsContext';
+import { createExcelWorkbook, downloadExcelWorkbook } from '@/utils/excelExport';
 import { 
   ArrowLeft, 
   Users, 
@@ -19,7 +22,10 @@ import {
   CheckCircle,
   XCircle,
   Trophy,
-  Target
+  Target,
+  Mail,
+  FileSpreadsheet,
+  ChevronDown
 } from 'lucide-react';
 
 const Results: React.FC = () => {
@@ -83,7 +89,7 @@ const Results: React.FC = () => {
     ? Math.round(filteredCandidates.reduce((sum, f) => sum + (f.llmScore || 0), 0) / filteredCandidates.length)
     : 0;
 
-  const exportAllResults = () => {
+  const exportAsJSON = () => {
     const exportData = filteredCandidates.map(candidate => ({
       name: candidate.name.replace(/\.[^/.]+$/, ""),
       score: candidate.llmScore,
@@ -104,6 +110,11 @@ const Results: React.FC = () => {
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
+  };
+
+  const exportAsExcel = () => {
+    const workbook = createExcelWorkbook(filteredCandidates, criteria);
+    downloadExcelWorkbook(workbook, 'cv_evaluation_results.xlsx');
   };
 
   if (cvFiles.length === 0) {
@@ -173,15 +184,39 @@ const Results: React.FC = () => {
               </div>
             </Card>
 
-            <Button 
-              onClick={exportAllResults} 
-              variant="outline" 
-              size="sm" 
-              className="w-full mb-4"
-            >
-              <Download className="w-4 h-4 mr-2" />
-              Export All
-            </Button>
+            {/* Export and Email Actions */}
+            <div className="space-y-2 mb-4">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="w-full">
+                    <Download className="w-4 h-4 mr-2" />
+                    Export All
+                    <ChevronDown className="w-4 h-4 ml-2" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="w-full">
+                  <DropdownMenuItem onClick={exportAsExcel}>
+                    <FileSpreadsheet className="w-4 h-4 mr-2" />
+                    Excel Workbook
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={exportAsJSON}>
+                    <FileText className="w-4 h-4 mr-2" />
+                    JSON Data
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+              
+              <EmailDialog 
+                candidates={filteredCandidates} 
+                criteria={criteria}
+                trigger={
+                  <Button variant="outline" size="sm" className="w-full">
+                    <Mail className="w-4 h-4 mr-2" />
+                    Send via Email
+                  </Button>
+                }
+              />
+            </div>
           </div>
 
           <div className="flex-1 overflow-hidden flex flex-col">

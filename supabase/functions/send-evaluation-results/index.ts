@@ -1,0 +1,171 @@
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+}
+
+interface EmailRequest {
+  to: string
+  subject: string
+  candidates: Array<{
+    name: string
+    score: number
+    atsScore?: number
+    approved: boolean
+    experience?: number
+    justification?: string
+    strengths?: string[]
+    weaknesses?: string[]
+    recommendations?: string[]
+  }>
+  criteria: Array<{
+    text: string
+    isMandatory: boolean
+    weight: number
+  }>
+}
+
+serve(async (req) => {
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { headers: corsHeaders })
+  }
+
+  try {
+    const { to, subject, candidates, criteria }: EmailRequest = await req.json()
+
+    // Create HTML email template
+    const emailHtml = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="utf-8">
+          <style>
+            body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+            .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; text-align: center; }
+            .content { padding: 20px; }
+            .candidate { border: 1px solid #ddd; margin: 15px 0; padding: 15px; border-radius: 8px; }
+            .approved { border-left: 4px solid #10b981; }
+            .rejected { border-left: 4px solid #ef4444; }
+            .score { font-size: 1.2em; font-weight: bold; }
+            .score.high { color: #10b981; }
+            .score.medium { color: #f59e0b; }
+            .score.low { color: #ef4444; }
+            .summary { background: #f8fafc; padding: 15px; border-radius: 8px; margin: 20px 0; }
+            ul { margin: 10px 0; padding-left: 20px; }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <h1>CV Evaluation Results</h1>
+            <p>Professional Candidate Assessment Report</p>
+          </div>
+          
+          <div class="content">
+            <div class="summary">
+              <h2>Summary</h2>
+              <p><strong>Total Candidates:</strong> ${candidates.length}</p>
+              <p><strong>Approved:</strong> ${candidates.filter(c => c.approved).length}</p>
+              <p><strong>Average Score:</strong> ${Math.round(candidates.reduce((sum, c) => sum + c.score, 0) / candidates.length)}%</p>
+            </div>
+
+            <h2>Evaluation Criteria</h2>
+            <ul>
+              ${criteria.map(c => `<li><strong>${c.text}</strong> ${c.isMandatory ? '(Mandatory)' : ''} - Weight: ${c.weight}%</li>`).join('')}
+            </ul>
+
+            <h2>Candidate Results</h2>
+            ${candidates.map(candidate => {
+              const scoreClass = candidate.score >= 80 ? 'high' : candidate.score >= 60 ? 'medium' : 'low'
+              return `
+                <div class="candidate ${candidate.approved ? 'approved' : 'rejected'}">
+                  <h3>${candidate.name}</h3>
+                  <p><span class="score ${scoreClass}">Score: ${candidate.score}%</span> | Status: <strong>${candidate.approved ? 'Approved' : 'Rejected'}</strong></p>
+                  ${candidate.experience ? `<p><strong>Experience:</strong> ${candidate.experience} years</p>` : ''}
+                  ${candidate.atsScore ? `<p><strong>ATS Score:</strong> ${candidate.atsScore}%</p>` : ''}
+                  
+                  ${candidate.justification ? `
+                    <div>
+                      <h4>Evaluation Summary</h4>
+                      <p>${candidate.justification}</p>
+                    </div>
+                  ` : ''}
+                  
+                  ${candidate.strengths && candidate.strengths.length > 0 ? `
+                    <div>
+                      <h4>Strengths</h4>
+                      <ul>${candidate.strengths.map(s => `<li>${s}</li>`).join('')}</ul>
+                    </div>
+                  ` : ''}
+                  
+                  ${candidate.weaknesses && candidate.weaknesses.length > 0 ? `
+                    <div>
+                      <h4>Areas for Improvement</h4>
+                      <ul>${candidate.weaknesses.map(w => `<li>${w}</li>`).join('')}</ul>
+                    </div>
+                  ` : ''}
+                  
+                  ${candidate.recommendations && candidate.recommendations.length > 0 ? `
+                    <div>
+                      <h4>Recommendations</h4>
+                      <ul>${candidate.recommendations.map(r => `<li>${r}</li>`).join('')}</ul>
+                    </div>
+                  ` : ''}
+                </div>
+              `
+            }).join('')}
+            
+            <div style="margin-top: 30px; padding: 15px; background: #f1f5f9; border-radius: 8px; text-align: center;">
+              <p><em>This report was generated by CV Evaluation Platform</em></p>
+            </div>
+          </div>
+        </body>
+      </html>
+    `
+
+    // Note: In a real implementation, you would use a service like Resend, SendGrid, or similar
+    // For now, we'll simulate the email sending
+    console.log(`Email would be sent to: ${to}`)
+    console.log(`Subject: ${subject}`)
+    console.log(`HTML content length: ${emailHtml.length} characters`)
+
+    // In production, replace this with actual email service integration:
+    /*
+    const emailResponse = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${Deno.env.get('RESEND_API_KEY')}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        from: 'noreply@yourdomain.com',
+        to: [to],
+        subject: subject,
+        html: emailHtml,
+      }),
+    })
+    */
+
+    return new Response(
+      JSON.stringify({ 
+        success: true, 
+        message: 'Email sent successfully',
+        preview: emailHtml // Remove this in production
+      }),
+      { 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      }
+    )
+
+  } catch (error) {
+    console.error('Error sending email:', error)
+    return new Response(
+      JSON.stringify({ error: error.message }),
+      { 
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      }
+    )
+  }
+})
