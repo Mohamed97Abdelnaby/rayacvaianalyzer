@@ -126,22 +126,21 @@ serve(async (req) => {
       </html>
     `
 
-    // For demo purposes, we'll simulate the email sending
-    // In production, replace this with actual email service integration
-    console.log(`Email would be sent to: ${to}`)
-    console.log(`Subject: CV Evaluation Results`)
-    console.log(`Excel attachment size: ${excelBuffer.length} bytes`)
+    // Send email with Excel attachment using Resend
+    const resendApiKey = Deno.env.get('RESEND_API_KEY')
+    
+    if (!resendApiKey) {
+      throw new Error('RESEND_API_KEY not configured. Please add it in Supabase secrets.')
+    }
 
-    // In production, replace this with actual email service like Resend:
-    /*
     const emailResponse = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${Deno.env.get('RESEND_API_KEY')}`,
+        'Authorization': `Bearer ${resendApiKey}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        from: 'noreply@yourdomain.com',
+        from: 'CV Evaluation <noreply@yourdomain.com>', // Update this with your verified domain
         to: [to],
         subject: 'CV Evaluation Results',
         html: emailHtml,
@@ -152,7 +151,11 @@ serve(async (req) => {
         }]
       }),
     })
-    */
+
+    if (!emailResponse.ok) {
+      const errorData = await emailResponse.text()
+      throw new Error(`Email service error: ${emailResponse.status} - ${errorData}`)
+    }
 
     return new Response(
       JSON.stringify({ 
