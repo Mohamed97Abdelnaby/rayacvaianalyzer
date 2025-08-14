@@ -3,7 +3,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { Mail, Send, Loader2 } from 'lucide-react';
 import { CVFile, EvaluationCriteria } from '@/contexts/ResultsContext';
@@ -18,8 +17,6 @@ interface EmailDialogProps {
 const EmailDialog: React.FC<EmailDialogProps> = ({ candidates, criteria, trigger }) => {
   const [open, setOpen] = useState(false);
   const [email, setEmail] = useState('');
-  const [subject, setSubject] = useState(`CV Evaluation Results - ${candidates.length} Candidates`);
-  const [message, setMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
 
@@ -62,10 +59,8 @@ const EmailDialog: React.FC<EmailDialogProps> = ({ candidates, criteria, trigger
       const { data, error } = await supabase.functions.invoke('send-evaluation-results', {
         body: {
           to: email,
-          subject: subject,
           candidates: candidateData,
           criteria: criteria,
-          customMessage: message,
         },
       });
 
@@ -78,7 +73,6 @@ const EmailDialog: React.FC<EmailDialogProps> = ({ candidates, criteria, trigger
 
       setOpen(false);
       setEmail('');
-      setMessage('');
     } catch (error) {
       console.error('Email error:', error);
       toast({
@@ -118,37 +112,18 @@ const EmailDialog: React.FC<EmailDialogProps> = ({ candidates, criteria, trigger
             />
           </div>
           
-          <div>
-            <Label htmlFor="subject">Subject</Label>
-            <Input
-              id="subject"
-              value={subject}
-              onChange={(e) => setSubject(e.target.value)}
-              className="mt-1"
-            />
-          </div>
-          
-          <div>
-            <Label htmlFor="message">Additional Message (Optional)</Label>
-            <Textarea
-              id="message"
-              placeholder="Add a personal message..."
-              value={message}
-              onChange={(e) => setMessage(e.target.value)}
-              rows={3}
-              className="mt-1"
-            />
-          </div>
-          
           <div className="bg-muted/50 p-3 rounded-lg">
             <p className="text-sm text-muted-foreground">
-              This will send a detailed report including:
+              <strong>Subject:</strong> CV Evaluation Results
+            </p>
+            <p className="text-sm text-muted-foreground mt-2">
+              This will send an email with an Excel workbook attachment containing:
             </p>
             <ul className="text-xs text-muted-foreground mt-1 space-y-1">
-              <li>• Summary of {candidates.filter(c => c.status === 'completed').length} candidates</li>
-              <li>• Individual scores and approval status</li>
-              <li>• Evaluation criteria and justifications</li>
-              <li>• Strengths, weaknesses, and recommendations</li>
+              <li>• Summary sheet with all {candidates.filter(c => c.status === 'completed').length} candidates</li>
+              <li>• Individual sheets for each candidate with detailed evaluation</li>
+              <li>• Scores, criteria evaluations, and recommendations</li>
+              <li>• Professional formatting for easy review</li>
             </ul>
           </div>
           
